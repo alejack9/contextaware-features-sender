@@ -3,6 +3,7 @@ const axios = require("axios");
 import "reflect-metadata";
 import getNoises from "./getter";
 import waitForPromises from "./sender";
+import logger from "./logger";
 
 export default async function main(
   featuresPerTime: number,
@@ -27,23 +28,24 @@ export default async function main(
       },
       properties: {
         dummyLocation: true,
-        dummyUpdatesCount: noise.dummyUpdatesCount,
-        dummyUpdatesRadiusMax: noise.dummyUpdatesRadiusMax,
-        dummyUpdatesRadiusMin: noise.dummyUpdatesRadiusMin,
-        perturbatorDecimals: noise.perturbatorDecimals,
+        dummyUpdatesCount: 10,
+        dummyUpdatesRadiusMax: 0,
+        dummyUpdatesRadiusMin: 0,
+        perturbatorDecimals: 0,
         gpsPerturbated: true,
         timeStamp: noise.timestamp.getTime(),
         noiseLevel: noise.noise,
       },
     });
 
-    if ((requestNumber + 1) % featuresPerTime === 0) {
+    if (featureCollection.features.length % featuresPerTime === 0) {
       // send
-      console.log(`Sending ${featureCollection.features.length} features...`);
+      logger(`Sending ${featureCollection.features.length} features...`);
       proms.push(axios.post(endpoint, featureCollection));
-      console.log(
-        `Sent: ${
-          Math.round((requestNumber / noises.length) * 100 * 1000) / 1000
+      featureCollection.features.splice(0, featureCollection.features.length);
+      logger(
+        `${new Date().toLocaleTimeString()} - Sent: ${
+          Math.round(((requestNumber + 1) / noises.length) * 100 * 1000) / 1000
         }%`
       );
       if (proms.length === requestsPerTime) {
@@ -55,9 +57,8 @@ export default async function main(
   }
   if (featureCollection.features) {
     // send and wait
-    await axios.post(endpoint, featureCollection);
-    console.log(
-      `Sent and confirmed last ${featureCollection.features.length} features.`
-    );
+    logger(`Sending ${featureCollection.features.length} features...`);
+    proms.push(axios.post(endpoint, featureCollection));
   }
+  await waitForPromises(proms);
 }
